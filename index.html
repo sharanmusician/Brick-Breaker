@@ -3,217 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aethercore | Zen Strike</title>
+    <title>Aethercore | Quantum Strike</title>
     <style>
         :root {
-            --slate: #1e293b;
-            --gold: #fbbf24;
-            --emerald: #10b981;
-            --crimson: #ef4444;
-            --glass: rgba(15, 23, 42, 0.8);
+            --bg: #05070a;
+            --gold: #d4af37;
+            --cyan: #00f2ff;
+            --glass: rgba(255, 255, 255, 0.03);
+            --danger: #ff3333;
         }
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background: #0f172a;
+            background: var(--bg);
             color: white;
-            font-family: 'Inter', -apple-system, system-ui, sans-serif;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-family: 'Inter', -apple-system, sans-serif;
             overflow: hidden; touch-action: none;
         }
 
-        #ui-header {
-            position: absolute; top: 0; width: 100%; height: 60px;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 20px; box-sizing: border-box;
-            background: var(--glass); border-bottom: 1px solid rgba(255,255,255,0.1);
-            z-index: 10;
+        #ui-layer {
+            position: absolute; top: 0; width: 100%;
+            display: flex; justify-content: space-between;
+            padding: 20px; box-sizing: border-box;
+            z-index: 10; pointer-events: none;
         }
 
-        .brand-text { font-weight: 800; letter-spacing: 2px; color: var(--gold); font-size: 14px; }
-        .score-text { font-family: monospace; font-size: 20px; }
+        .stat { font-family: 'Courier New', monospace; font-size: 18px; text-transform: uppercase; }
+        #timer { color: var(--danger); font-weight: bold; font-size: 24px; text-shadow: 0 0 10px var(--danger); }
 
-        #game-wrapper {
-            position: relative; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        canvas {
-            background: #020617;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            image-rendering: auto;
-        }
+        canvas { display: block; filter: contrast(1.1) brightness(1.1); }
 
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(2, 6, 23, 0.95);
+            background: rgba(0,0,0,0.9);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 20; text-align: center; padding: 20px;
+            z-index: 100; transition: opacity 0.4s;
         }
 
-        h1 { font-size: 3rem; margin: 0; letter-spacing: -2px; }
-        p { color: #94a3b8; margin-bottom: 30px; }
-
-        .btn-start {
-            background: var(--gold); color: #000;
-            border: none; padding: 16px 40px; font-weight: bold;
-            text-transform: uppercase; cursor: pointer; border-radius: 4px;
-            transition: transform 0.2s;
+        .terminal {
+            width: 300px; padding: 20px;
+            border: 1px solid var(--gold);
+            background: var(--glass);
+            text-align: center;
         }
 
-        .btn-start:active { transform: scale(0.95); }
+        .btn {
+            background: var(--gold); color: black; border: none;
+            padding: 12px 30px; margin-top: 20px; cursor: pointer;
+            font-weight: 900; letter-spacing: 2px;
+        }
 
-        /* PC View */
-        @media (min-width: 768px) {
-            canvas { border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+        .aether-logo {
+            position: absolute; bottom: 20px; left: 20px;
+            font-size: 10px; opacity: 0.4; letter-spacing: 4px;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-header">
-        <div class="brand-text">AETHERCORE INTERACTIVE</div>
-        <div class="score-text" id="score-val">0000</div>
+    <div id="ui-layer">
+        <div class="stat">SECURE_LINK: <span id="score">0000</span></div>
+        <div id="timer" class="stat">60.0s</div>
     </div>
 
-    <div id="game-wrapper">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div id="overlay">
-            <h1 id="status-title">ZEN STRIKE</h1>
-            <p id="status-msg">Precision. Agility. Minimalist Combat.</p>
-            <button class="btn-start" onclick="initGame()">Commence</button>
+    <div id="overlay">
+        <div class="terminal">
+            <h2 id="title" style="color:var(--gold); margin:0;">QUANTUM STRIKE</h2>
+            <p id="msg" style="font-size: 12px; color: #888;">Clear the sector in 60 seconds or core destabilization occurs.</p>
+            <button class="btn" onclick="startEngine()">ENGAGE</button>
         </div>
     </div>
 
+    <canvas id="game"></canvas>
+    <div class="aether-logo">AETHERCORE INTERACTIVE // NEURAL_NET_V9</div>
+
     <script>
-        const canvas = document.getElementById("gameCanvas");
+        const canvas = document.getElementById("game");
         const ctx = canvas.getContext("2d");
-        const scoreVal = document.getElementById("score-val");
+        const scoreEl = document.getElementById("score");
+        const timerEl = document.getElementById("timer");
         const overlay = document.getElementById("overlay");
 
-        let state = {
-            running: false,
-            score: 0,
-            isMobile: window.innerWidth < 768
-        };
-
-        let ball = { x: 0, y: 0, dx: 0, dy: 0, r: 8 };
-        let paddle = { w: 0, h: 10, x: 0 };
-        let bricks = [];
-        const config = { rows: 5, cols: 8, padding: 8 };
+        let ball, paddle, bricks, particles;
+        let score, timeLeft, gameRunning = false;
+        let lastTime = 0;
 
         function resize() {
-            state.isMobile = window.innerWidth < 768;
-            canvas.width = state.isMobile ? window.innerWidth : 800;
-            canvas.height = state.isMobile ? window.innerHeight : 600;
-            paddle.w = state.isMobile ? 100 : 120;
-            resetBall();
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
 
-        function resetBall() {
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height - 60;
-            ball.dx = (Math.random() - 0.5) * 8;
-            ball.dy = -6;
+        function createParticles(x, y, color) {
+            for(let i=0; i<8; i++) {
+                particles.push({
+                    x, y, 
+                    vx: (Math.random()-0.5)*10, 
+                    vy: (Math.random()-0.5)*10, 
+                    life: 1.0, 
+                    color
+                });
+            }
         }
 
-        function initBricks() {
+        function init() {
+            resize();
+            score = 0;
+            timeLeft = 60;
+            particles = [];
+            paddle = { w: 140, h: 4, x: canvas.width/2 - 70 };
+            ball = { x: canvas.width/2, y: canvas.height - 100, dx: 6, dy: -6, r: 5 };
+            
             bricks = [];
-            const bWidth = (canvas.width - (config.cols + 1) * config.padding) / config.cols;
-            for (let c = 0; c < config.cols; c++) {
+            const cols = Math.floor(canvas.width / 100);
+            const rows = 6;
+            const bW = (canvas.width - 40) / cols;
+            
+            for(let c=0; c<cols; c++) {
                 bricks[c] = [];
-                for (let r = 0; r < config.rows; r++) {
+                for(let r=0; r<rows; r++) {
                     bricks[c][r] = { 
-                        x: c * (bWidth + config.padding) + config.padding,
-                        y: r * (25 + config.padding) + 80,
-                        w: bWidth, h: 25, status: 1,
-                        color: r % 2 === 0 ? '#fbbf24' : '#f59e0b'
+                        x: 20 + c * bW, 
+                        y: 80 + r * 30, 
+                        w: bW - 4, 
+                        h: 20, 
+                        status: 1,
+                        hp: r === 0 ? 2 : 1 // Creative: Top row takes 2 hits
                     };
                 }
             }
         }
 
-        function handleInput(e) {
-            let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            const rect = canvas.getBoundingClientRect();
-            let relX = clientX - rect.left;
-            paddle.x = Math.max(0, Math.min(canvas.width - paddle.w, relX - paddle.w/2));
+        function startEngine() {
+            init();
+            gameRunning = true;
+            overlay.style.opacity = "0";
+            setTimeout(() => overlay.style.display = "none", 400);
+            requestAnimationFrame(tick);
         }
 
-        window.addEventListener('mousemove', handleInput);
-        window.addEventListener('touchmove', (e) => { handleInput(e); e.preventDefault(); }, {passive: false});
-        window.addEventListener('resize', resize);
-
-        function initGame() {
-            resize();
-            initBricks();
-            state.score = 0;
-            state.running = true;
-            overlay.style.display = 'none';
-            loop();
+        function endGame(win) {
+            gameRunning = false;
+            overlay.style.display = "flex";
+            overlay.style.opacity = "1";
+            document.getElementById("title").innerText = win ? "SECTOR SECURED" : "CRITICAL FAILURE";
+            document.getElementById("title").style.color = win ? "var(--cyan)" : "var(--danger)";
+            document.getElementById("msg").innerText = win ? "Performance within optimal parameters." : "Core destabilized. System reboot required.";
         }
 
-        function collision() {
-            for (let c = 0; c < config.cols; c++) {
-                for (let r = 0; r < config.rows; r++) {
-                    let b = bricks[c][r];
-                    if (b.status === 1) {
-                        if (ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h) {
-                            ball.dy = -ball.dy;
-                            b.status = 0;
-                            state.score += 100;
-                            scoreVal.innerText = state.score.toString().padStart(4, '0');
-                        }
-                    }
-                }
+        // Controls
+        const updatePaddle = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            paddle.x = clientX - paddle.w/2;
+        };
+        window.addEventListener('mousemove', updatePaddle);
+        window.addEventListener('touchmove', (e) => { updatePaddle(e); e.preventDefault(); }, {passive:false});
+
+        function tick(timestamp) {
+            if(!gameRunning) return;
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            if (dt < 0.1) { // Prevent huge jumps
+                timeLeft -= dt;
+                timerEl.innerText = timeLeft.toFixed(1) + "s";
             }
-        }
 
-        function loop() {
-            if (!state.running) return;
+            if(timeLeft <= 0) return endGame(false);
 
-            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(5, 7, 10, 0.3)"; // Trail effect
+            ctx.fillRect(0,0,canvas.width, canvas.height);
 
-            // Draw Bricks
+            // Ball Physics
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if(ball.x < 0 || ball.x > canvas.width) ball.dx *= -1;
+            if(ball.y < 0) ball.dy *= -1;
+            if(ball.y > canvas.height) return endGame(false);
+
+            // Paddle Collision
+            if(ball.y > canvas.height - 40 && ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
+                ball.dy = -Math.abs(ball.dy);
+                ball.dx = (ball.x - (paddle.x + paddle.w/2)) * 0.15; // Angular bounce
+            }
+
+            // Bricks Collision
+            let remaining = 0;
             bricks.forEach(col => col.forEach(b => {
-                if(b.status === 1) {
-                    ctx.fillStyle = b.color;
+                if(b.status > 0) {
+                    remaining++;
+                    if(ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h) {
+                        ball.dy *= -1;
+                        b.hp--;
+                        if(b.hp <= 0) b.status = 0;
+                        score += 50;
+                        scoreEl.innerText = score.toString().padStart(4, '0');
+                        createParticles(ball.x, ball.y, b.hp > 0 ? "#fff" : var(--gold));
+                    }
+                    ctx.fillStyle = b.hp > 1 ? "#444" : var(--gold);
                     ctx.fillRect(b.x, b.y, b.w, b.h);
                 }
             }));
 
-            // Draw Paddle
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(paddle.x, canvas.height - 30, paddle.w, paddle.h);
+            if(remaining === 0) return endGame(true);
 
-            // Draw Ball
+            // Draw Paddle & Ball
+            ctx.fillStyle = var(--cyan);
+            ctx.fillRect(paddle.x, canvas.height - 40, paddle.w, paddle.h);
+            
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+            ctx.fillStyle = "#fff";
             ctx.fill();
 
-            // Physics
-            if(ball.x + ball.dx > canvas.width - ball.r || ball.x + ball.dx < ball.r) ball.dx = -ball.dx;
-            if(ball.y + ball.dy < ball.r) ball.dy = -ball.dy;
-            else if(ball.y + ball.dy > canvas.height - 30) {
-                if(ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
-                    let impact = (ball.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
-                    ball.dx = impact * 8;
-                    ball.dy = -ball.dy;
-                } else {
-                    state.running = false;
-                    document.getElementById('status-title').innerText = "SESSION TERMINATED";
-                    overlay.style.display = 'flex';
-                }
-            }
+            // Particles
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                ctx.fillStyle = `rgba(212, 175, 55, ${p.life})`;
+                ctx.fillRect(p.x, p.y, 2, 2);
+            });
 
-            ball.x += ball.dx;
-            ball.y += ball.dy;
-
-            collision();
-            requestAnimationFrame(loop);
+            requestAnimationFrame(tick);
         }
 
+        window.addEventListener('resize', resize);
         resize();
     </script>
 </body>
