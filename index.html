@@ -3,124 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AETHERCORE | QUANTUM</title>
+    <title>AETHERCORE // QUANTUM STRIKE</title>
     <style>
         :root {
             --gold: #C5A059;
-            --slate: #1A1C1E;
-            --surface: #25282B;
-            --danger: #FF5252;
-            --text: #F0F0F0;
+            --slate: #0D0F12;
+            --surface: #1A1D21;
+            --danger: #FF4B4B;
+            --white: #FFFFFF;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: var(--slate);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--white);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             overflow: hidden; touch-action: none;
         }
 
-        #app-interface {
+        /* HUD Layer */
+        #hud {
             position: absolute; top: env(safe-area-inset-top, 20px);
             width: 100%; display: flex; justify-content: space-between;
-            padding: 0 24px; z-index: 10; pointer-events: none;
+            padding: 0 30px; z-index: 10; pointer-events: none;
         }
 
         .metric { display: flex; flex-direction: column; }
-        .m-label { font-size: 10px; letter-spacing: 0.15em; color: rgba(255,255,255,0.4); font-weight: 700; }
-        .m-value { font-family: "SF Mono", "Roboto Mono", monospace; font-size: 20px; color: var(--gold); }
+        .label { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.3); font-weight: 800; text-transform: uppercase; }
+        .value { font-family: 'monospace'; font-size: 22px; color: var(--gold); }
+        #timer { color: var(--danger); font-weight: bold; }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        /* Canvas */
+        canvas { display: block; width: 100vw; height: 100vh; }
 
-        #screen-overlay {
+        /* Systems Overlays */
+        #gate {
             position: absolute; inset: 0;
-            background: radial-gradient(circle at center, var(--surface) 0%, var(--slate) 100%);
+            background: rgba(13, 15, 18, 0.98);
             display: flex; align-items: center; justify-content: center;
-            z-index: 100; transition: opacity 0.4s ease;
+            z-index: 100; transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .panel {
-            width: 85%; max-width: 400px; padding: 40px 20px;
-            background: var(--surface); border: 1px solid rgba(197, 160, 89, 0.2);
-            text-align: center; border-radius: 2px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        .terminal {
+            width: 90%; max-width: 400px; padding: 50px 30px;
+            background: var(--surface); border: 1px solid rgba(197, 160, 89, 0.15);
+            text-align: center; position: relative;
         }
 
-        h1 { font-weight: 300; letter-spacing: 8px; margin: 0 0 16px 0; font-size: 24px; color: var(--gold); }
-        p { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 32px; }
+        h1 { font-weight: 200; letter-spacing: 12px; margin: 0 0 15px 0; font-size: 22px; color: var(--gold); }
+        p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.8; margin-bottom: 35px; letter-spacing: 1px; }
 
-        .cta-button {
+        .btn-core {
             background: var(--gold); color: var(--slate);
-            border: none; padding: 16px 48px; font-weight: 800;
-            letter-spacing: 2px; cursor: pointer; border-radius: 4px;
-            text-transform: uppercase; width: 100%;
+            border: none; padding: 18px; font-weight: 800;
+            letter-spacing: 4px; cursor: pointer; width: 100%;
+            text-transform: uppercase; transition: 0.2s;
         }
 
-        .branding-footer {
-            position: absolute; bottom: env(safe-area-inset-bottom, 20px);
-            width: 100%; text-align: center; font-size: 9px;
-            letter-spacing: 4px; color: rgba(255,255,255,0.2); font-weight: 600;
+        .btn-core:active { transform: scale(0.98); background: var(--white); }
+
+        .footer-id {
+            position: absolute; bottom: 20px; width: 100%;
+            text-align: center; font-size: 8px; letter-spacing: 5px;
+            color: rgba(255,255,255,0.15); text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
-    <div id="app-interface">
+    <div id="hud">
         <div class="metric">
-            <span class="m-label">SCORE</span>
-            <span id="score-out" class="m-value">0000</span>
+            <span class="label">Archive_Score</span>
+            <span id="score-val" class="value">0000</span>
         </div>
         <div class="metric" style="text-align: right;">
-            <span class="m-label">SYNC_TIME</span>
-            <span id="timer-out" class="m-value">60.0</span>
+            <span class="label">Core_Stability</span>
+            <span id="timer" class="value">60.0</span>
         </div>
     </div>
 
-    <div id="screen-overlay">
-        <div class="panel">
-            <h1 id="ov-title">AETHERCORE</h1>
-            <p id="ov-msg">Authorized access required. Deploying quantum dampener. Clear all nodes within 60 seconds.</p>
-            <button class="cta-button" onclick="engine.init()">Deploy</button>
+    <div id="gate">
+        <div class="terminal">
+            <h1 id="gate-h">AETHERCORE</h1>
+            <p id="gate-p">Quantum nodes detected. System breach imminent. You have 60 seconds to clear the sector before core lock.</p>
+            <button class="btn-core" onclick="core.boot()">Initialize</button>
         </div>
     </div>
 
     <canvas id="stage"></canvas>
-    <div class="branding-footer">AETHERCORE INTERACTIVE // MOB_OS_v4</div>
+    <div class="footer-id">Professional License // Budget_Verified_3.0M</div>
 
     <script>
-        const engine = {
-            ctx: null,
-            canvas: null,
+        const core = {
             active: false,
             score: 0,
-            timeLeft: 60,
-            lastTick: 0,
-            
-            // Assets
-            ball: { x: 0, y: 0, dx: 0, dy: 0, r: 6 },
-            paddle: { x: 0, y: 0, w: 120, h: 8 },
+            time: 60,
+            lastTime: 0,
+            ball: { x:0, y:0, dx:0, dy:0, r:7, speed: 6 },
+            paddle: { x:0, y:0, w:130, h:6 },
             bricks: [],
 
-            setup() {
+            boot() {
                 this.canvas = document.getElementById('stage');
-                this.ctx = this.canvas.getContext('2d', { alpha: false });
-                window.addEventListener('resize', () => this.resize());
+                this.ctx = this.canvas.getContext('2d');
                 this.resize();
                 
-                const input = (e) => {
-                    const x = e.touches ? e.touches[0].clientX : e.clientX;
-                    this.paddle.x = x - this.paddle.w / 2;
-                    // Clamp
-                    if(this.paddle.x < 0) this.paddle.x = 0;
-                    if(this.paddle.x > this.canvas.width / window.devicePixelRatio - this.paddle.w) {
-                        this.paddle.x = this.canvas.width / window.devicePixelRatio - this.paddle.w;
+                // Reset State
+                this.score = 0;
+                this.time = 60;
+                this.ball.speed = 6;
+                this.bricks = [];
+                
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                this.paddle.x = w/2 - this.paddle.w/2;
+                this.paddle.y = h - 80;
+                this.ball.x = w/2;
+                this.ball.y = h - 150;
+                this.ball.dx = 4;
+                this.ball.dy = -4;
+
+                // Build Matrix
+                const cols = w < 600 ? 5 : 10;
+                const rows = 5;
+                const pad = 12;
+                const bW = (w - (pad * (cols + 1))) / cols;
+
+                for(let c=0; c<cols; c++) {
+                    this.bricks[c] = [];
+                    for(let r=0; r<rows; r++) {
+                        this.bricks[c][r] = {
+                            x: pad + c * (bW + pad),
+                            y: 120 + r * (25 + pad),
+                            w: bW, h: 20,
+                            active: true,
+                            hp: r === 0 ? 2 : 1 // Tactical: Top row needs 2 hits
+                        };
                     }
+                }
+
+                document.getElementById('gate').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('gate').style.display = 'none';
+                    this.active = true;
+                    this.lastTime = performance.now();
+                    requestAnimationFrame((t) => this.loop(t));
+                }, 500);
+
+                this.bind();
+            },
+
+            bind() {
+                const move = (e) => {
+                    const x = e.touches ? e.touches[0].clientX : e.clientX;
+                    this.paddle.x = x - this.paddle.w/2;
+                    // Screen Clamping
+                    if(this.paddle.x < 0) this.paddle.x = 0;
+                    if(this.paddle.x > window.innerWidth - this.paddle.w) this.paddle.x = window.innerWidth - this.paddle.w;
                 };
-                window.addEventListener('mousemove', input);
-                window.addEventListener('touchmove', (e) => { input(e); e.preventDefault(); }, {passive: false});
+                window.addEventListener('mousemove', move);
+                window.addEventListener('touchmove', (e) => { move(e); e.preventDefault(); }, {passive:false});
+                window.addEventListener('resize', () => this.resize());
             },
 
             resize() {
@@ -130,139 +175,95 @@
                 this.ctx.scale(dpr, dpr);
             },
 
-            init() {
-                this.score = 0;
-                this.timeLeft = 60;
-                this.active = true;
-                
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                
-                this.paddle.y = h - 60;
-                this.paddle.x = w / 2 - this.paddle.w / 2;
-                
-                this.ball.x = w / 2;
-                this.ball.y = h - 100;
-                this.ball.dx = 5;
-                this.ball.dy = -5;
-
-                // Build Bricks
-                this.bricks = [];
-                const cols = w < 600 ? 5 : 8;
-                const rows = 5;
-                const padding = 10;
-                const bW = (w - (padding * (cols + 1))) / cols;
-
-                for(let c=0; c<cols; c++) {
-                    this.bricks[c] = [];
-                    for(let r=0; r<rows; r++) {
-                        this.bricks[c][r] = {
-                            x: padding + c * (bW + padding),
-                            y: 100 + r * (25 + padding),
-                            w: bW, h: 20,
-                            hp: r === 0 ? 2 : 1, // Double health on top row
-                            active: true
-                        };
-                    }
-                }
-
-                document.getElementById('screen-overlay').style.opacity = '0';
-                setTimeout(() => document.getElementById('screen-overlay').style.display = 'none', 400);
-                
-                this.lastTick = performance.now();
-                requestAnimationFrame((t) => this.loop(t));
-            },
-
-            end(win) {
+            shutdown(success) {
                 this.active = false;
-                const ov = document.getElementById('screen-overlay');
-                ov.style.display = 'flex';
-                ov.style.opacity = '1';
-                document.getElementById('ov-title').innerText = win ? "SECURED" : "CRITICAL";
-                document.getElementById('ov-title').style.color = win ? "#C5A059" : "#FF5252";
-                document.getElementById('ov-msg').innerText = win ? 
-                    "All quantum nodes neutralized. System online." : 
-                    "Timing mismatch. Neural link severed.";
+                const gate = document.getElementById('gate');
+                gate.style.display = 'flex';
+                setTimeout(() => gate.style.opacity = '1', 10);
+                document.getElementById('gate-h').innerText = success ? "MISSION_CLEAR" : "CORE_LOSS";
+                document.getElementById('gate-h').style.color = success ? "var(--gold)" : "var(--danger)";
+                document.getElementById('gate-p').innerText = success ? 
+                    "All nodes neutralized. Archive secured." : 
+                    "System timeout. Quantum instability reached 100%.";
             },
 
             update(dt) {
-                this.timeLeft -= dt;
-                document.getElementById('timer-out').innerText = Math.max(0, this.timeLeft).toFixed(1);
-                if(this.timeLeft <= 0) return this.end(false);
+                this.time -= dt;
+                document.getElementById('timer').innerText = Math.max(0, this.time).toFixed(1);
+                if(this.time <= 0) return this.shutdown(false);
 
+                // Ball Movement
                 this.ball.x += this.ball.dx;
                 this.ball.y += this.ball.dy;
 
-                // Wall bounce
+                // Collisions: Walls
                 if(this.ball.x < this.ball.r || this.ball.x > window.innerWidth - this.ball.r) this.ball.dx *= -1;
                 if(this.ball.y < this.ball.r) this.ball.dy *= -1;
-                
-                // Paddle bounce
-                if(this.ball.y > this.paddle.y - this.ball.r && 
-                   this.ball.x > this.paddle.x && 
-                   this.ball.x < this.paddle.x + this.paddle.w) {
+
+                // Collisions: Paddle
+                if(this.ball.y > this.paddle.y - this.ball.r && this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
                     this.ball.dy = -Math.abs(this.ball.dy);
-                    // Add direction based on hit point
-                    let delta = (this.ball.x - (this.paddle.x + this.paddle.w/2)) / (this.paddle.w/2);
-                    this.ball.dx = delta * 7;
+                    // Speed Increase Mechanic
+                    this.ball.dx *= 1.05;
+                    this.ball.dy *= 1.05;
+                    // Angle Control
+                    let influence = (this.ball.x - (this.paddle.x + this.paddle.w/2)) / (this.paddle.w/2);
+                    this.ball.dx = influence * 8;
                 }
 
-                // Floor
-                if(this.ball.y > window.innerHeight) return this.end(false);
+                // Collisions: Floor
+                if(this.ball.y > window.innerHeight) return this.shutdown(false);
 
-                // Bricks logic
-                let activeCount = 0;
+                // Collisions: Bricks
+                let remaining = 0;
                 this.bricks.forEach(col => col.forEach(b => {
                     if(b.active) {
-                        activeCount++;
-                        if(this.ball.x > b.x && this.ball.x < b.x + b.w && 
-                           this.ball.y > b.y && this.ball.y < b.y + b.h) {
+                        remaining++;
+                        if(this.ball.x > b.x && this.ball.x < b.x + b.w && this.ball.y > b.y && this.ball.y < b.y + b.h) {
                             this.ball.dy *= -1;
                             b.hp--;
                             if(b.hp <= 0) b.active = false;
-                            this.score += 100;
-                            document.getElementById('score-out').innerText = this.score.toString().padStart(4, '0');
+                            this.score += 150;
+                            document.getElementById('score-val').innerText = this.score.toString().padStart(4, '0');
                         }
                     }
                 }));
 
-                if(activeCount === 0) return this.end(true);
+                if(remaining === 0) return this.shutdown(true);
             },
 
             draw() {
-                this.ctx.fillStyle = '#1A1C1E';
-                this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+                const ctx = this.ctx;
+                ctx.fillStyle = '#0D0F12';
+                ctx.fillRect(0,0, window.innerWidth, window.innerHeight);
 
-                // Draw Bricks
+                // Bricks
                 this.bricks.forEach(col => col.forEach(b => {
                     if(b.active) {
-                        this.ctx.fillStyle = b.hp > 1 ? '#444' : '#C5A059';
-                        this.ctx.fillRect(b.x, b.y, b.w, b.h);
+                        ctx.fillStyle = b.hp > 1 ? '#333' : '#C5A059';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
                     }
                 }));
 
-                // Draw Paddle
-                this.ctx.fillStyle = '#FFFFFF';
-                this.ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.w, this.paddle.h);
+                // Paddle
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.w, this.paddle.h);
 
-                // Draw Ball
-                this.ctx.beginPath();
-                this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
-                this.ctx.fill();
+                // Ball
+                ctx.beginPath();
+                ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
+                ctx.fill();
             },
 
             loop(t) {
                 if(!this.active) return;
-                const dt = (t - this.lastTick) / 1000;
-                this.lastTick = t;
-
+                const dt = (t - this.lastTime) / 1000;
+                this.lastTime = t;
                 this.update(dt);
                 this.draw();
                 requestAnimationFrame((t) => this.loop(t));
             }
         };
-
-        window.onload = () => engine.setup();
     </script>
 </body>
 </html>
