@@ -2,248 +2,267 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AETHERCORE | QUANTUM STRIKE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AETHERCORE | QUANTUM</title>
     <style>
         :root {
-            --accent: #d4af37;
-            --bg: #0a0a0b;
-            --surface: #161618;
-            --text: #e4e4e7;
-            --danger: #ef4444;
+            --gold: #C5A059;
+            --slate: #1A1C1E;
+            --surface: #25282B;
+            --danger: #FF5252;
+            --text: #F0F0F0;
         }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: var(--bg);
+            background-color: var(--slate);
             color: var(--text);
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden; touch-action: none;
         }
 
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 40px; box-sizing: border-box;
-            z-index: 10; pointer-events: none;
+        #app-interface {
+            position: absolute; top: env(safe-area-inset-top, 20px);
+            width: 100%; display: flex; justify-content: space-between;
+            padding: 0 24px; z-index: 10; pointer-events: none;
         }
 
-        .stat-group { display: flex; flex-direction: column; }
-        .label { font-size: 10px; letter-spacing: 2px; color: #666; font-weight: bold; }
-        .value { font-family: 'Courier New', monospace; font-size: 24px; color: var(--accent); }
-        
-        #timer-display { color: var(--danger); }
+        .metric { display: flex; flex-direction: column; }
+        .m-label { font-size: 10px; letter-spacing: 0.15em; color: rgba(255,255,255,0.4); font-weight: 700; }
+        .m-value { font-family: "SF Mono", "Roboto Mono", monospace; font-size: 20px; color: var(--gold); }
 
-        canvas { display: block; cursor: none; }
+        canvas { display: block; width: 100%; height: 100%; }
 
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(10, 10, 11, 0.95);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; text-align: center;
+        #screen-overlay {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle at center, var(--surface) 0%, var(--slate) 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.4s ease;
         }
 
-        .modal {
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            background: var(--surface);
-            padding: 40px;
-            width: 320px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        .panel {
+            width: 85%; max-width: 400px; padding: 40px 20px;
+            background: var(--surface); border: 1px solid rgba(197, 160, 89, 0.2);
+            text-align: center; border-radius: 2px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
         }
 
-        h1 { margin: 0 0 10px 0; letter-spacing: 5px; font-weight: 300; }
-        p { font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 30px; }
+        h1 { font-weight: 300; letter-spacing: 8px; margin: 0 0 16px 0; font-size: 24px; color: var(--gold); }
+        p { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 32px; }
 
-        .btn {
-            background: transparent; color: var(--accent);
-            border: 1px solid var(--accent);
-            padding: 12px 40px; cursor: pointer;
-            font-weight: bold; letter-spacing: 2px;
-            transition: all 0.3s ease;
+        .cta-button {
+            background: var(--gold); color: var(--slate);
+            border: none; padding: 16px 48px; font-weight: 800;
+            letter-spacing: 2px; cursor: pointer; border-radius: 4px;
+            text-transform: uppercase; width: 100%;
         }
 
-        .btn:hover { background: var(--accent); color: black; }
-
-        .branding {
-            position: absolute; bottom: 20px; width: 100%;
-            text-align: center; font-size: 9px; letter-spacing: 3px; color: #444;
+        .branding-footer {
+            position: absolute; bottom: env(safe-area-inset-bottom, 20px);
+            width: 100%; text-align: center; font-size: 9px;
+            letter-spacing: 4px; color: rgba(255,255,255,0.2); font-weight: 600;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div class="stat-group">
-            <span class="label">NEURAL_SCORE</span>
-            <span id="score" class="value">0000</span>
+    <div id="app-interface">
+        <div class="metric">
+            <span class="m-label">SCORE</span>
+            <span id="score-out" class="m-value">0000</span>
         </div>
-        <div class="stat-group" style="text-align: right;">
-            <span class="label">TIME_REMAINING</span>
-            <span id="timer-display" class="value">60.0</span>
-        </div>
-    </div>
-
-    <div id="overlay">
-        <div class="modal">
-            <h1 id="m-title">QUANTUM_STRIKE</h1>
-            <p id="m-desc">Infiltrate the core. You have 60 seconds before system lockdown. Beware of reinforced nodes.</p>
-            <button class="btn" onclick="startSession()">INITIALIZE</button>
+        <div class="metric" style="text-align: right;">
+            <span class="m-label">SYNC_TIME</span>
+            <span id="timer-out" class="m-value">60.0</span>
         </div>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
-    <div class="branding">AETHERCORE INTERACTIVE // SYSTEM_DEVOPS_2026</div>
+    <div id="screen-overlay">
+        <div class="panel">
+            <h1 id="ov-title">AETHERCORE</h1>
+            <p id="ov-msg">Authorized access required. Deploying quantum dampener. Clear all nodes within 60 seconds.</p>
+            <button class="cta-button" onclick="engine.init()">Deploy</button>
+        </div>
+    </div>
+
+    <canvas id="stage"></canvas>
+    <div class="branding-footer">AETHERCORE INTERACTIVE // MOB_OS_v4</div>
 
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const scoreEl = document.getElementById("score");
-        const timerEl = document.getElementById("timer-display");
-        const overlay = document.getElementById("overlay");
-
-        let state = {
+        const engine = {
+            ctx: null,
+            canvas: null,
             active: false,
             score: 0,
-            time: 60,
-            lastFrame: 0
-        };
-
-        let paddle, ball, bricks, particles;
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-
-        function initData() {
-            resize();
-            state.score = 0;
-            state.time = 60;
-            particles = [];
+            timeLeft: 60,
+            lastTick: 0,
             
-            const isMobile = window.innerWidth < 768;
-            paddle = { 
-                w: isMobile ? 100 : 140, 
-                h: 6, 
-                x: canvas.width / 2 - 70 
-            };
+            // Assets
+            ball: { x: 0, y: 0, dx: 0, dy: 0, r: 6 },
+            paddle: { x: 0, y: 0, w: 120, h: 8 },
+            bricks: [],
 
-            ball = { 
-                x: canvas.width / 2, 
-                y: canvas.height - 100, 
-                dx: 5, 
-                dy: -5, 
-                r: 5 
-            };
-
-            bricks = [];
-            const cols = isMobile ? 5 : 10;
-            const rows = 5;
-            const gap = 10;
-            const bW = (canvas.width - (gap * (cols + 1))) / cols;
-
-            for(let c = 0; c < cols; c++) {
-                bricks[c] = [];
-                for(let r = 0; r < rows; r++) {
-                    bricks[c][r] = {
-                        x: gap + c * (bW + gap),
-                        y: 100 + r * (25 + gap),
-                        w: bW,
-                        h: 20,
-                        active: true,
-                        hp: r === 0 ? 2 : 1 // Top row requires 2 hits
-                    };
-                }
-            }
-        }
-
-        function startSession() {
-            initData();
-            state.active = true;
-            overlay.style.display = "none";
-            requestAnimationFrame(loop);
-        }
-
-        function endGame(win) {
-            state.active = false;
-            overlay.style.display = "flex";
-            document.getElementById("m-title").innerText = win ? "SUCCESS" : "FAILED";
-            document.getElementById("m-title").style.color = win ? "#d4af37" : "#ef4444";
-            document.getElementById("m-desc").innerText = win ? 
-                "Core accessed. Data extraction complete." : 
-                "Connection lost. Core destabilization detected.";
-        }
-
-        // Input Handling
-        const movePaddle = (e) => {
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            paddle.x = x - paddle.w / 2;
-        };
-        window.addEventListener('mousemove', movePaddle);
-        window.addEventListener('touchmove', (e) => { movePaddle(e); e.preventDefault(); }, {passive: false});
-
-        function loop(now) {
-            if(!state.active) return;
-            
-            const dt = (now - state.lastFrame) / 1000;
-            state.lastFrame = now;
-
-            if(dt < 0.1) state.time -= dt;
-            timerEl.innerText = Math.max(0, state.time).toFixed(1);
-
-            if(state.time <= 0) return endGame(false);
-
-            // Physics
-            ball.x += ball.dx;
-            ball.y += ball.dy;
-
-            if(ball.x < 0 || ball.x > canvas.width) ball.dx *= -1;
-            if(ball.y < 0) ball.dy *= -1;
-            if(ball.y > canvas.height) return endGame(false);
-
-            // Paddle Hit
-            if(ball.y > canvas.height - 50 && ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
-                ball.dy = -Math.abs(ball.dy);
-                ball.dx = (ball.x - (paddle.x + paddle.w/2)) * 0.2;
-            }
-
-            // Rendering
-            ctx.fillStyle = "#0a0a0b";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Bricks
-            let count = 0;
-            bricks.forEach(col => col.forEach(b => {
-                if(b.active) {
-                    count++;
-                    // Brick Collision
-                    if(ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h) {
-                        ball.dy *= -1;
-                        b.hp--;
-                        if(b.hp <= 0) b.active = false;
-                        state.score += 100;
-                        scoreEl.innerText = state.score.toString().padStart(4, '0');
+            setup() {
+                this.canvas = document.getElementById('stage');
+                this.ctx = this.canvas.getContext('2d', { alpha: false });
+                window.addEventListener('resize', () => this.resize());
+                this.resize();
+                
+                const input = (e) => {
+                    const x = e.touches ? e.touches[0].clientX : e.clientX;
+                    this.paddle.x = x - this.paddle.w / 2;
+                    // Clamp
+                    if(this.paddle.x < 0) this.paddle.x = 0;
+                    if(this.paddle.x > this.canvas.width / window.devicePixelRatio - this.paddle.w) {
+                        this.paddle.x = this.canvas.width / window.devicePixelRatio - this.paddle.w;
                     }
-                    ctx.fillStyle = b.hp > 1 ? "#444" : "#d4af37";
-                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                };
+                window.addEventListener('mousemove', input);
+                window.addEventListener('touchmove', (e) => { input(e); e.preventDefault(); }, {passive: false});
+            },
+
+            resize() {
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.width = window.innerWidth * dpr;
+                this.canvas.height = window.innerHeight * dpr;
+                this.ctx.scale(dpr, dpr);
+            },
+
+            init() {
+                this.score = 0;
+                this.timeLeft = 60;
+                this.active = true;
+                
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                
+                this.paddle.y = h - 60;
+                this.paddle.x = w / 2 - this.paddle.w / 2;
+                
+                this.ball.x = w / 2;
+                this.ball.y = h - 100;
+                this.ball.dx = 5;
+                this.ball.dy = -5;
+
+                // Build Bricks
+                this.bricks = [];
+                const cols = w < 600 ? 5 : 8;
+                const rows = 5;
+                const padding = 10;
+                const bW = (w - (padding * (cols + 1))) / cols;
+
+                for(let c=0; c<cols; c++) {
+                    this.bricks[c] = [];
+                    for(let r=0; r<rows; r++) {
+                        this.bricks[c][r] = {
+                            x: padding + c * (bW + padding),
+                            y: 100 + r * (25 + padding),
+                            w: bW, h: 20,
+                            hp: r === 0 ? 2 : 1, // Double health on top row
+                            active: true
+                        };
+                    }
                 }
-            }));
 
-            if(count === 0) return endGame(true);
+                document.getElementById('screen-overlay').style.opacity = '0';
+                setTimeout(() => document.getElementById('screen-overlay').style.display = 'none', 400);
+                
+                this.lastTick = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            },
 
-            // Paddle & Ball
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(paddle.x, canvas.height - 50, paddle.w, paddle.h);
-            
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
-            ctx.fill();
+            end(win) {
+                this.active = false;
+                const ov = document.getElementById('screen-overlay');
+                ov.style.display = 'flex';
+                ov.style.opacity = '1';
+                document.getElementById('ov-title').innerText = win ? "SECURED" : "CRITICAL";
+                document.getElementById('ov-title').style.color = win ? "#C5A059" : "#FF5252";
+                document.getElementById('ov-msg').innerText = win ? 
+                    "All quantum nodes neutralized. System online." : 
+                    "Timing mismatch. Neural link severed.";
+            },
 
-            requestAnimationFrame(loop);
-        }
+            update(dt) {
+                this.timeLeft -= dt;
+                document.getElementById('timer-out').innerText = Math.max(0, this.timeLeft).toFixed(1);
+                if(this.timeLeft <= 0) return this.end(false);
 
-        window.addEventListener('resize', resize);
-        resize();
+                this.ball.x += this.ball.dx;
+                this.ball.y += this.ball.dy;
+
+                // Wall bounce
+                if(this.ball.x < this.ball.r || this.ball.x > window.innerWidth - this.ball.r) this.ball.dx *= -1;
+                if(this.ball.y < this.ball.r) this.ball.dy *= -1;
+                
+                // Paddle bounce
+                if(this.ball.y > this.paddle.y - this.ball.r && 
+                   this.ball.x > this.paddle.x && 
+                   this.ball.x < this.paddle.x + this.paddle.w) {
+                    this.ball.dy = -Math.abs(this.ball.dy);
+                    // Add direction based on hit point
+                    let delta = (this.ball.x - (this.paddle.x + this.paddle.w/2)) / (this.paddle.w/2);
+                    this.ball.dx = delta * 7;
+                }
+
+                // Floor
+                if(this.ball.y > window.innerHeight) return this.end(false);
+
+                // Bricks logic
+                let activeCount = 0;
+                this.bricks.forEach(col => col.forEach(b => {
+                    if(b.active) {
+                        activeCount++;
+                        if(this.ball.x > b.x && this.ball.x < b.x + b.w && 
+                           this.ball.y > b.y && this.ball.y < b.y + b.h) {
+                            this.ball.dy *= -1;
+                            b.hp--;
+                            if(b.hp <= 0) b.active = false;
+                            this.score += 100;
+                            document.getElementById('score-out').innerText = this.score.toString().padStart(4, '0');
+                        }
+                    }
+                }));
+
+                if(activeCount === 0) return this.end(true);
+            },
+
+            draw() {
+                this.ctx.fillStyle = '#1A1C1E';
+                this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+                // Draw Bricks
+                this.bricks.forEach(col => col.forEach(b => {
+                    if(b.active) {
+                        this.ctx.fillStyle = b.hp > 1 ? '#444' : '#C5A059';
+                        this.ctx.fillRect(b.x, b.y, b.w, b.h);
+                    }
+                }));
+
+                // Draw Paddle
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.w, this.paddle.h);
+
+                // Draw Ball
+                this.ctx.beginPath();
+                this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
+                this.ctx.fill();
+            },
+
+            loop(t) {
+                if(!this.active) return;
+                const dt = (t - this.lastTick) / 1000;
+                this.lastTick = t;
+
+                this.update(dt);
+                this.draw();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+        };
+
+        window.onload = () => engine.setup();
     </script>
 </body>
 </html>
