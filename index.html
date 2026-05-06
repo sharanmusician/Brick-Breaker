@@ -2,248 +2,208 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aethercore Interactive | Project Breakout</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aethercore | Zen Strike</title>
     <style>
         :root {
-            --primary-neon: #00f2ff;
-            --secondary-neon: #7000ff;
-            --bg-dark: #0a0a0c;
-            --accent-red: #ff0055;
-            --glass: rgba(255, 255, 255, 0.05);
+            --slate: #1e293b;
+            --gold: #fbbf24;
+            --emerald: #10b981;
+            --crimson: #ef4444;
+            --glass: rgba(15, 23, 42, 0.8);
         }
 
-        body {
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
-            background-size: 40px 40px;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            color: #fff;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            overflow: hidden;
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: #0f172a;
+            color: white;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            overflow: hidden; touch-action: none;
         }
 
-        #ui-layer {
-            position: absolute;
-            top: 20px;
-            display: flex;
-            justify-content: space-between;
-            width: 800px;
-            max-width: 90vw;
-            pointer-events: none;
+        #ui-header {
+            position: absolute; top: 0; width: 100%; height: 60px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; box-sizing: border-box;
+            background: var(--glass); border-bottom: 1px solid rgba(255,255,255,0.1);
             z-index: 10;
         }
 
-        .stat-box {
-            background: var(--glass);
-            padding: 10px 20px;
-            border-left: 3px solid var(--primary-neon);
-            backdrop-filter: blur(10px);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 14px;
-        }
+        .brand-text { font-weight: 800; letter-spacing: 2px; color: var(--gold); font-size: 14px; }
+        .score-text { font-family: monospace; font-size: 20px; }
 
-        #game-container {
-            position: relative;
-            padding: 10px;
-            background: linear-gradient(135deg, var(--primary-neon), var(--secondary-neon));
-            border-radius: 4px;
-            box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+        #game-wrapper {
+            position: relative; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
         }
 
         canvas {
-            background: #000;
-            display: block;
-            cursor: none;
-        }
-
-        .branding {
-            position: absolute;
-            bottom: 20px;
-            right: 30px;
-            text-align: right;
-            opacity: 0.6;
-        }
-
-        .branding h2 {
-            margin: 0;
-            font-size: 12px;
-            letter-spacing: 5px;
-            color: var(--primary-neon);
+            background: #020617;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            image-rendering: auto;
         }
 
         #overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            transition: opacity 0.5s;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 23, 0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20; text-align: center; padding: 20px;
         }
 
-        button {
-            background: transparent;
-            color: var(--primary-neon);
-            border: 2px solid var(--primary-neon);
-            padding: 15px 40px;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            cursor: pointer;
-            transition: 0.3s;
+        h1 { font-size: 3rem; margin: 0; letter-spacing: -2px; }
+        p { color: #94a3b8; margin-bottom: 30px; }
+
+        .btn-start {
+            background: var(--gold); color: #000;
+            border: none; padding: 16px 40px; font-weight: bold;
+            text-transform: uppercase; cursor: pointer; border-radius: 4px;
+            transition: transform 0.2s;
         }
 
-        button:hover {
-            background: var(--primary-neon);
-            color: #000;
-            box-shadow: 0 0 20px var(--primary-neon);
+        .btn-start:active { transform: scale(0.95); }
+
+        /* PC View */
+        @media (min-width: 768px) {
+            canvas { border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div class="stat-box">Score: <span id="score">000</span></div>
-        <div class="stat-box">System: <span style="color: var(--primary-neon)">Stable</span></div>
+    <div id="ui-header">
+        <div class="brand-text">AETHERCORE INTERACTIVE</div>
+        <div class="score-text" id="score-val">0000</div>
     </div>
 
-    <div id="game-container">
-        <canvas id="stage" width="800" height="500"></canvas>
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+        
         <div id="overlay">
-            <h1 style="letter-spacing: 10px; color: var(--primary-neon)">NEON BREAKER</h1>
-            <button onclick="startGame()">Initialize Session</button>
+            <h1 id="status-title">ZEN STRIKE</h1>
+            <p id="status-msg">Precision. Agility. Minimalist Combat.</p>
+            <button class="btn-start" onclick="initGame()">Commence</button>
         </div>
     </div>
 
-    <div class="branding">
-        <h2>AETHERCORE INTERACTIVE</h2>
-        <p style="font-size: 10px; margin: 5px 0 0 0;">ENGINE v4.2.0 // DEPLOYMENT STAGE</p>
-    </div>
-
     <script>
-        const canvas = document.getElementById("stage");
+        const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        const scoreEl = document.getElementById("score");
+        const scoreVal = document.getElementById("score-val");
         const overlay = document.getElementById("overlay");
 
-        let gameRunning = false;
-        let score = 0;
+        let state = {
+            running: false,
+            score: 0,
+            isMobile: window.innerWidth < 768
+        };
 
-        // Configuration
-        const ball = { x: 400, y: 450, dx: 4, dy: -4, radius: 7 };
-        const paddle = { w: 120, h: 12, x: 340 };
-        const brick = { rows: 5, cols: 8, w: 85, h: 25, pad: 12, top: 60, left: 25 };
-
+        let ball = { x: 0, y: 0, dx: 0, dy: 0, r: 8 };
+        let paddle = { w: 0, h: 10, x: 0 };
         let bricks = [];
+        const config = { rows: 5, cols: 8, padding: 8 };
+
+        function resize() {
+            state.isMobile = window.innerWidth < 768;
+            canvas.width = state.isMobile ? window.innerWidth : 800;
+            canvas.height = state.isMobile ? window.innerHeight : 600;
+            paddle.w = state.isMobile ? 100 : 120;
+            resetBall();
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height - 60;
+            ball.dx = (Math.random() - 0.5) * 8;
+            ball.dy = -6;
+        }
+
         function initBricks() {
             bricks = [];
-            for (let c = 0; c < brick.cols; c++) {
+            const bWidth = (canvas.width - (config.cols + 1) * config.padding) / config.cols;
+            for (let c = 0; c < config.cols; c++) {
                 bricks[c] = [];
-                for (let r = 0; r < brick.rows; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1, color: `hsl(${200 + (r * 20)}, 100%, 50%)` };
+                for (let r = 0; r < config.rows; r++) {
+                    bricks[c][r] = { 
+                        x: c * (bWidth + config.padding) + config.padding,
+                        y: r * (25 + config.padding) + 80,
+                        w: bWidth, h: 25, status: 1,
+                        color: r % 2 === 0 ? '#fbbf24' : '#f59e0b'
+                    };
                 }
             }
         }
 
-        document.addEventListener("mousemove", (e) => {
+        function handleInput(e) {
+            let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             const rect = canvas.getBoundingClientRect();
-            const relX = e.clientX - rect.left;
-            if (relX > paddle.w/2 && relX < canvas.width - paddle.w/2) {
-                paddle.x = relX - paddle.w/2;
-            }
-        });
+            let relX = clientX - rect.left;
+            paddle.x = Math.max(0, Math.min(canvas.width - paddle.w, relX - paddle.w/2));
+        }
 
-        function startGame() {
-            score = 0;
-            scoreEl.innerText = "000";
-            ball.x = 400; ball.y = 450;
-            ball.dx = 5; ball.dy = -5;
+        window.addEventListener('mousemove', handleInput);
+        window.addEventListener('touchmove', (e) => { handleInput(e); e.preventDefault(); }, {passive: false});
+        window.addEventListener('resize', resize);
+
+        function initGame() {
+            resize();
             initBricks();
-            gameRunning = true;
-            overlay.style.opacity = "0";
-            setTimeout(() => overlay.style.display = "none", 500);
-            update();
+            state.score = 0;
+            state.running = true;
+            overlay.style.display = 'none';
+            loop();
         }
 
         function collision() {
-            for (let c = 0; c < brick.cols; c++) {
-                for (let r = 0; r < brick.rows; r++) {
+            for (let c = 0; c < config.cols; c++) {
+                for (let r = 0; r < config.rows; r++) {
                     let b = bricks[c][r];
                     if (b.status === 1) {
-                        if (ball.x > b.x && ball.x < b.x + brick.w && ball.y > b.y && ball.y < b.y + brick.h) {
+                        if (ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h) {
                             ball.dy = -ball.dy;
                             b.status = 0;
-                            score += 10;
-                            scoreEl.innerText = score.toString().padStart(3, '0');
-                            if (score === brick.rows * brick.cols * 10) endGame("MISSION CLEAR");
+                            state.score += 100;
+                            scoreVal.innerText = state.score.toString().padStart(4, '0');
                         }
                     }
                 }
             }
         }
 
-        function endGame(msg) {
-            gameRunning = false;
-            overlay.style.display = "flex";
-            overlay.style.opacity = "1";
-            overlay.querySelector('h1').innerText = msg;
-            overlay.querySelector('button').innerText = "Reconnect";
-        }
+        function loop() {
+            if (!state.running) return;
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0,0,canvas.width, canvas.height);
 
-            // Draw Bricks with Glow
-            bricks.forEach((col, c) => {
-                col.forEach((b, r) => {
-                    if (b.status === 1) {
-                        b.x = c * (brick.w + brick.pad) + brick.left;
-                        b.y = r * (brick.h + brick.pad) + brick.top;
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = b.color;
-                        ctx.fillStyle = b.color;
-                        ctx.fillRect(b.x, b.y, brick.w, brick.h);
-                        ctx.shadowBlur = 0;
-                    }
-                });
-            });
+            // Draw Bricks
+            bricks.forEach(col => col.forEach(b => {
+                if(b.status === 1) {
+                    ctx.fillStyle = b.color;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                }
+            }));
 
             // Draw Paddle
             ctx.fillStyle = "#fff";
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#00f2ff";
-            ctx.fillRect(paddle.x, canvas.height - paddle.h - 10, paddle.w, paddle.h);
+            ctx.fillRect(paddle.x, canvas.height - 30, paddle.w, paddle.h);
 
             // Draw Ball
             ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
             ctx.fill();
-            ctx.closePath();
-            ctx.shadowBlur = 0;
-        }
 
-        function update() {
-            if (!gameRunning) return;
-
-            if (ball.x + ball.dx > canvas.width - ball.radius || ball.x + ball.dx < ball.radius) ball.dx = -ball.dx;
-            if (ball.y + ball.dy < ball.radius) ball.dy = -ball.dy;
-            else if (ball.y + ball.dy > canvas.height - ball.radius - 10) {
-                if (ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
+            // Physics
+            if(ball.x + ball.dx > canvas.width - ball.r || ball.x + ball.dx < ball.r) ball.dx = -ball.dx;
+            if(ball.y + ball.dy < ball.r) ball.dy = -ball.dy;
+            else if(ball.y + ball.dy > canvas.height - 30) {
+                if(ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
+                    let impact = (ball.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
+                    ball.dx = impact * 8;
                     ball.dy = -ball.dy;
-                    ball.dx *= 1.02; // Velocity scalar
-                    ball.dy *= 1.02;
                 } else {
-                    endGame("LINK SEVERED");
+                    state.running = false;
+                    document.getElementById('status-title').innerText = "SESSION TERMINATED";
+                    overlay.style.display = 'flex';
                 }
             }
 
@@ -251,12 +211,10 @@
             ball.y += ball.dy;
 
             collision();
-            draw();
-            requestAnimationFrame(update);
+            requestAnimationFrame(loop);
         }
 
-        initBricks();
-        draw(); // Initial static frame
+        resize();
     </script>
 </body>
 </html>
