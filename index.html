@@ -7,53 +7,59 @@
     <style>
         :root {
             --gold: #C5A059; --slate: #0D0F12; --surface: #1A1D21;
-            --danger: #FF4B4B; --white: #FFFFFF; --neon-blue: #00D1FF;
+            --danger: #FF4B4B; --white: #FFFFFF; --success: #4CAF50;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: var(--slate); color: var(--white);
-            font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden;
+            font-family: -apple-system, sans-serif; overflow: hidden;
         }
+
+        /* Responsive HUD */
         #hud {
-            position: absolute; top: env(safe-area-inset-top, 20px);
+            position: absolute; top: env(safe-area-inset-top, 15px);
             width: 100%; display: flex; justify-content: space-between;
-            padding: 0 25px; z-index: 10; pointer-events: none;
+            padding: 0 20px; z-index: 10; pointer-events: none;
         }
         .metric { display: flex; flex-direction: column; }
-        .label { font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,0.3); font-weight: 800; }
-        .value { font-family: monospace; font-size: 20px; color: var(--gold); }
-        
-        #screen {
-            position: absolute; inset: 0; background: rgba(13,15,18,0.98);
+        .label { font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,0.4); font-weight: 800; }
+        .value { font-family: monospace; font-size: 18px; color: var(--gold); }
+
+        /* Professional Modal System */
+        #modal-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.9);
             display: flex; align-items: center; justify-content: center; z-index: 100;
         }
-        .panel {
-            width: 85%; max-width: 400px; padding: 40px;
-            background: var(--surface); border: 1px solid rgba(197,160,89,0.2);
-            text-align: center;
+        .modal {
+            width: 85%; max-width: 350px; padding: 30px;
+            background: var(--surface); border: 1px solid rgba(197,160,89,0.3);
+            text-align: center; border-radius: 4px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
         }
+        h2 { font-weight: 300; letter-spacing: 6px; margin: 0 0 10px 0; color: var(--gold); font-size: 20px; }
+        p { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.5; margin-bottom: 25px; }
+        
         .btn {
             background: var(--gold); color: var(--slate); border: none;
-            padding: 16px; font-weight: 800; letter-spacing: 2px;
-            width: 100%; text-transform: uppercase; cursor: pointer; margin-top: 20px;
+            padding: 15px; font-weight: 800; letter-spacing: 2px;
+            width: 100%; text-transform: uppercase; cursor: pointer; border-radius: 2px;
         }
-        canvas { display: block; width: 100vw; height: 100vh; }
+
+        canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
     </style>
 </head>
 <body>
 
 <div id="hud">
-    <div class="metric"><span class="label">LEVEL</span><span id="lvl-out" class="value">01</span></div>
-    <div class="metric" style="text-align:center"><span class="label">SCORE</span><span id="score-out" class="value">0000</span></div>
-    <div class="metric" style="text-align:right"><span class="label">STABILITY</span><span id="time-out" class="value">60.0</span></div>
+    <div class="metric"><span class="label">LEVEL</span><span id="lvl-ui">01</span></div>
+    <div class="metric" style="text-align:right"><span class="label">STABILITY</span><span id="time-ui">60.0</span></div>
 </div>
 
-<div id="screen">
-    <div class="panel">
-        <h1 id="m-title" style="letter-spacing:8px; color:var(--gold)">AETHERCORE</h1>
-        <p id="m-desc">Neural link standby. Objective: Neutralize all quantum nodes.</p>
-        <button class="btn" onclick="game.start()">Initialize</button>
+<div id="modal-overlay">
+    <div class="modal">
+        <h2 id="m-title">AETHERCORE</h2>
+        <p id="m-desc">Neural link established. Sector 01 requires immediate node neutralization. Time is limited.</p>
+        <button class="btn" id="m-btn" onclick="game.handleModalAction()">Initialize</button>
     </div>
 </div>
 
@@ -62,22 +68,26 @@
 <script>
 const game = {
     lvl: 1, score: 0, time: 60, active: false,
-    ball: { x:0, y:0, dx:5, dy:-5, r:6 },
-    paddle: { x:0, w:120, h:8 },
-    bricks: [], particles: [],
-    
+    ball: { x:0, y:0, dx:0, dy:0, r:6, baseSpeed: 5, currentSpeed: 5 },
+    paddle: { x:0, w:110, h:8, y:0 },
+    bricks: [], 
+    state: 'INTRO', // INTRO, LEVEL_WIN, GAME_OVER
+
     init() {
         this.canvas = document.getElementById('stage');
         this.ctx = this.canvas.getContext('2d');
         this.resize();
         window.addEventListener('resize', () => this.resize());
         
-        const input = (e) => {
+        const move = (e) => {
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             this.paddle.x = x - this.paddle.w/2;
+            if(this.paddle.x < 0) this.paddle.x = 0;
+            if(this.paddle.x > window.innerWidth - this.paddle.w) this.paddle.x = window.innerWidth - this.paddle.w;
         };
-        window.addEventListener('mousemove', input);
-        window.addEventListener('touchmove', (e) => { input(e); e.preventDefault(); }, {passive:false});
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', (e) => { move(e); e.preventDefault(); }, {passive:false});
+        this.setupLevel();
     },
 
     resize() {
@@ -87,41 +97,56 @@ const game = {
         this.ctx.scale(dpr, dpr);
     },
 
-    start() {
-        this.time = 62 - (this.lvl * 2); // Less time each level
+    setupLevel() {
+        this.time = 62 - (this.lvl * 2); 
+        this.ball.currentSpeed = this.ball.baseSpeed + (this.lvl * 0.5);
         this.bricks = [];
-        this.particles = [];
+        
         const cols = window.innerWidth < 600 ? 5 : 8;
-        const rows = 4 + Math.floor(this.lvl/3);
-        const pad = 10;
+        const rows = 4 + Math.floor(this.lvl/4);
+        const pad = 8;
         const bW = (window.innerWidth - (pad * (cols + 1))) / cols;
 
         for(let c=0; c<cols; c++) {
             for(let r=0; r<rows; r++) {
                 let type = 'normal';
-                // Level Logic: Introduce new brick types as level increases
-                if (this.lvl >= 2 && Math.random() > 0.8) type = 'hard';
-                if (this.lvl >= 3 && Math.random() > 0.9) type = 'explosive';
-                if (this.lvl >= 4 && Math.random() > 0.9) type = 'moving';
-                if (this.lvl >= 7 && Math.random() > 0.9) type = 'speed';
+                let hp = 1;
+                // Level-based Brick Injection
+                if (this.lvl >= 2 && Math.random() > 0.8) { type = 'hard'; hp = 3; }
+                if (this.lvl >= 3 && Math.random() > 0.9) { type = 'explosive'; }
+                if (this.lvl >= 5 && Math.random() > 0.9) { type = 'speed'; }
                 
                 this.bricks.push({
-                    x: pad + c * (bW + pad), y: 100 + r * (25 + pad),
-                    w: bW, h: 20, active: true, type: type,
-                    hp: type === 'hard' ? 3 : 1,
-                    v: type === 'moving' ? 2 : 0,
-                    visible: type !== 'invisible'
+                    x: pad + c * (bW + pad), y: 100 + r * (22 + pad),
+                    w: bW, h: 18, active: true, type: type, hp: hp
                 });
             }
         }
+        this.paddle.y = window.innerHeight - 70;
+        this.paddle.x = window.innerWidth/2 - this.paddle.w/2;
+        this.resetBall();
+    },
 
-        this.paddle.y = window.innerHeight - 80;
-        this.ball.x = window.innerWidth / 2;
-        this.ball.y = this.paddle.y - 20;
-        this.ball.dx = 5; this.ball.dy = -5;
-        
-        document.getElementById('screen').style.display = 'none';
-        document.getElementById('lvl-out').innerText = this.lvl.toString().padStart(2, '0');
+    resetBall() {
+        this.ball.x = window.innerWidth/2;
+        this.ball.y = this.paddle.y - 15;
+        this.ball.dx = this.ball.currentSpeed * (Math.random() > 0.5 ? 1 : -1);
+        this.ball.dy = -this.ball.currentSpeed;
+    },
+
+    handleModalAction() {
+        if(this.state === 'INTRO' || this.state === 'LEVEL_WIN') {
+            this.start();
+        } else if(this.state === 'GAME_OVER') {
+            this.lvl = 1;
+            this.setupLevel();
+            this.start();
+        }
+    },
+
+    start() {
+        document.getElementById('modal-overlay').style.display = 'none';
+        document.getElementById('lvl-ui').innerText = this.lvl.toString().padStart(2, '0');
         this.active = true;
         this.lastT = performance.now();
         requestAnimationFrame((t) => this.loop(t));
@@ -131,7 +156,6 @@ const game = {
         if(!this.active) return;
         const dt = (t - this.lastT) / 1000;
         this.lastT = t;
-        
         this.update(dt);
         this.draw();
         requestAnimationFrame((t) => this.loop(t));
@@ -139,65 +163,79 @@ const game = {
 
     update(dt) {
         this.time -= dt;
-        document.getElementById('time-out').innerText = Math.max(0, this.time).toFixed(1);
-        if(this.time <= 0) return this.end(false);
+        document.getElementById('time-ui').innerText = Math.max(0, this.time).toFixed(1);
+        
+        // Gradual speed increase (Entropy scaling)
+        this.ball.currentSpeed += dt * 0.15; 
+        const speedRatio = this.ball.currentSpeed / Math.sqrt(this.ball.dx**2 + this.ball.dy**2);
+        this.ball.dx *= speedRatio;
+        this.ball.dy *= speedRatio;
+
+        if(this.time <= 0) return this.endGame(false);
 
         this.ball.x += this.ball.dx;
         this.ball.y += this.ball.dy;
 
-        // Bounce
+        // Physics
         if(this.ball.x < 0 || this.ball.x > window.innerWidth) this.ball.dx *= -1;
         if(this.ball.y < 0) this.ball.dy *= -1;
-        if(this.ball.y > window.innerHeight) return this.end(false);
+        if(this.ball.y > window.innerHeight) return this.endGame(false);
 
         // Paddle
         if(this.ball.y > this.paddle.y && this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
             this.ball.dy = -Math.abs(this.ball.dy);
-            this.ball.dx = (this.ball.x - (this.paddle.x + this.paddle.w/2)) * 0.2;
+            let impact = (this.ball.x - (this.paddle.x + this.paddle.w/2)) / (this.paddle.w/2);
+            this.ball.dx = impact * this.ball.currentSpeed;
         }
 
         // Bricks
-        let remaining = 0;
+        let rem = 0;
         this.bricks.forEach(b => {
             if(!b.active) return;
-            remaining++;
-            
-            // Moving brick logic
-            if(b.type === 'moving') {
-                b.x += b.v;
-                if(b.x + b.w > window.innerWidth || b.x < 0) b.v *= -1;
-            }
-
+            rem++;
             if(this.ball.x > b.x && this.ball.x < b.x + b.w && this.ball.y > b.y && this.ball.y < b.y + b.h) {
-                this.hitBrick(b);
+                this.ball.dy *= -1;
+                b.hp--;
+                if(b.hp <= 0) {
+                    b.active = false;
+                    if(b.type === 'explosive') this.triggerExplosion(b);
+                }
             }
         });
 
-        if(remaining === 0) {
-            if(this.lvl >= 14) this.end(true, "GRAND MASTER");
-            else { this.lvl++; this.start(); }
-        }
+        if(rem === 0) this.winLevel();
     },
 
-    hitBrick(b) {
-        this.ball.dy *= -1;
-        b.hp--;
-        if(b.hp <= 0) {
-            b.active = false;
-            this.score += 100;
-            document.getElementById('score-out').innerText = this.score.toString().padStart(4, '0');
-            if(b.type === 'explosive') this.explode(b);
-        }
-        if(b.type === 'speed') this.ball.dx *= 1.5;
-    },
-
-    explode(origin) {
+    triggerExplosion(origin) {
         this.bricks.forEach(b => {
-            if(b.active && Math.hypot(b.x - origin.x, b.y - origin.y) < 100) {
-                b.active = false;
-                this.score += 50;
-            }
+            if(b.active && Math.hypot(b.x - origin.x, b.y - origin.y) < 80) b.active = false;
         });
+    },
+
+    winLevel() {
+        this.active = false;
+        if(this.lvl >= 14) {
+            this.showModal("ARCHIVE SECURED", "You have successfully cleared all 14 sectors. Final core access granted.", "Restart", "INTRO");
+        } else {
+            this.lvl++;
+            this.state = 'LEVEL_WIN';
+            this.setupLevel();
+            this.showModal("SECTOR CLEARED", `Level ${this.lvl-1} nodes neutralized. Synchronizing for Level ${this.lvl}. Stability time reduced.`, "Proceed", "LEVEL_WIN");
+        }
+    },
+
+    endGame(win) {
+        this.active = false;
+        this.state = 'GAME_OVER';
+        this.showModal("CONNECTION LOST", "Neural core destabilized. Signal lost at Sector " + this.lvl, "Re-Link", "GAME_OVER");
+    },
+
+    showModal(title, desc, btnText, state) {
+        this.state = state;
+        document.getElementById('m-title').innerText = title;
+        document.getElementById('m-desc').innerText = desc;
+        document.getElementById('m-btn').innerText = btnText;
+        document.getElementById('modal-overlay').style.display = 'flex';
     },
 
     draw() {
@@ -206,18 +244,10 @@ const game = {
 
         this.bricks.forEach(b => {
             if(!b.active) return;
-            if(b.type === 'hard') {
-                this.ctx.fillStyle = b.hp === 3 ? '#888' : b.hp === 2 ? '#555' : '#333';
-            } else if(b.type === 'explosive') {
-                this.ctx.fillStyle = '#FF4B4B';
-            } else if(b.type === 'speed') {
-                this.ctx.fillStyle = '#00D1FF';
-            } else {
-                this.ctx.fillStyle = '#C5A059';
-            }
+            this.ctx.fillStyle = b.type === 'hard' ? '#555' : (b.type === 'explosive' ? '#FF4B4B' : '#C5A059');
             this.ctx.fillRect(b.x, b.y, b.w, b.h);
-            if(b.hp > 1) { // Crack effect for hard bricks
-                this.ctx.strokeStyle = 'white';
+            if(b.type === 'hard') {
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
                 this.ctx.strokeRect(b.x+2, b.y+2, b.w-4, b.h-4);
             }
         });
@@ -227,14 +257,6 @@ const game = {
         this.ctx.beginPath();
         this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
         this.ctx.fill();
-    },
-
-    end(win, title) {
-        this.active = false;
-        document.getElementById('screen').style.display = 'flex';
-        document.getElementById('m-title').innerText = win ? (title || "LEVEL CLEAR") : "CONNECTION LOST";
-        document.getElementById('m-desc').innerText = win ? "Next sector identified. Proceed." : "Neural core destabilized. Try again.";
-        if(!win) this.lvl = 1;
     }
 };
 
