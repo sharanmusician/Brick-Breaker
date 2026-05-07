@@ -6,264 +6,239 @@
     <title>AETHERCORE // QUANTUM STRIKE</title>
     <style>
         :root {
-            --gold: #C5A059;
-            --slate: #0D0F12;
-            --surface: #1A1D21;
-            --danger: #FF4B4B;
-            --white: #FFFFFF;
+            --gold: #C5A059; --slate: #0D0F12; --surface: #1A1D21;
+            --danger: #FF4B4B; --white: #FFFFFF; --neon-blue: #00D1FF;
         }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: var(--slate);
-            color: var(--white);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            overflow: hidden; touch-action: none;
+            background-color: var(--slate); color: var(--white);
+            font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden;
         }
-
-        /* HUD Layer */
         #hud {
             position: absolute; top: env(safe-area-inset-top, 20px);
             width: 100%; display: flex; justify-content: space-between;
-            padding: 0 30px; z-index: 10; pointer-events: none;
+            padding: 0 25px; z-index: 10; pointer-events: none;
         }
-
         .metric { display: flex; flex-direction: column; }
-        .label { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.3); font-weight: 800; text-transform: uppercase; }
-        .value { font-family: 'monospace'; font-size: 22px; color: var(--gold); }
-        #timer { color: var(--danger); font-weight: bold; }
-
-        /* Canvas */
+        .label { font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,0.3); font-weight: 800; }
+        .value { font-family: monospace; font-size: 20px; color: var(--gold); }
+        
+        #screen {
+            position: absolute; inset: 0; background: rgba(13,15,18,0.98);
+            display: flex; align-items: center; justify-content: center; z-index: 100;
+        }
+        .panel {
+            width: 85%; max-width: 400px; padding: 40px;
+            background: var(--surface); border: 1px solid rgba(197,160,89,0.2);
+            text-align: center;
+        }
+        .btn {
+            background: var(--gold); color: var(--slate); border: none;
+            padding: 16px; font-weight: 800; letter-spacing: 2px;
+            width: 100%; text-transform: uppercase; cursor: pointer; margin-top: 20px;
+        }
         canvas { display: block; width: 100vw; height: 100vh; }
-
-        /* Systems Overlays */
-        #gate {
-            position: absolute; inset: 0;
-            background: rgba(13, 15, 18, 0.98);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 100; transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .terminal {
-            width: 90%; max-width: 400px; padding: 50px 30px;
-            background: var(--surface); border: 1px solid rgba(197, 160, 89, 0.15);
-            text-align: center; position: relative;
-        }
-
-        h1 { font-weight: 200; letter-spacing: 12px; margin: 0 0 15px 0; font-size: 22px; color: var(--gold); }
-        p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.8; margin-bottom: 35px; letter-spacing: 1px; }
-
-        .btn-core {
-            background: var(--gold); color: var(--slate);
-            border: none; padding: 18px; font-weight: 800;
-            letter-spacing: 4px; cursor: pointer; width: 100%;
-            text-transform: uppercase; transition: 0.2s;
-        }
-
-        .btn-core:active { transform: scale(0.98); background: var(--white); }
-
-        .footer-id {
-            position: absolute; bottom: 20px; width: 100%;
-            text-align: center; font-size: 8px; letter-spacing: 5px;
-            color: rgba(255,255,255,0.15); text-transform: uppercase;
-        }
     </style>
 </head>
 <body>
 
-    <div id="hud">
-        <div class="metric">
-            <span class="label">Archive_Score</span>
-            <span id="score-val" class="value">0000</span>
-        </div>
-        <div class="metric" style="text-align: right;">
-            <span class="label">Core_Stability</span>
-            <span id="timer" class="value">60.0</span>
-        </div>
+<div id="hud">
+    <div class="metric"><span class="label">LEVEL</span><span id="lvl-out" class="value">01</span></div>
+    <div class="metric" style="text-align:center"><span class="label">SCORE</span><span id="score-out" class="value">0000</span></div>
+    <div class="metric" style="text-align:right"><span class="label">STABILITY</span><span id="time-out" class="value">60.0</span></div>
+</div>
+
+<div id="screen">
+    <div class="panel">
+        <h1 id="m-title" style="letter-spacing:8px; color:var(--gold)">AETHERCORE</h1>
+        <p id="m-desc">Neural link standby. Objective: Neutralize all quantum nodes.</p>
+        <button class="btn" onclick="game.start()">Initialize</button>
     </div>
+</div>
 
-    <div id="gate">
-        <div class="terminal">
-            <h1 id="gate-h">AETHERCORE</h1>
-            <p id="gate-p">Quantum nodes detected. System breach imminent. You have 60 seconds to clear the sector before core lock.</p>
-            <button class="btn-core" onclick="core.boot()">Initialize</button>
-        </div>
-    </div>
+<canvas id="stage"></canvas>
 
-    <canvas id="stage"></canvas>
-    <div class="footer-id">Professional License // Budget_Verified_3.0M</div>
-
-    <script>
-        const core = {
-            active: false,
-            score: 0,
-            time: 60,
-            lastTime: 0,
-            ball: { x:0, y:0, dx:0, dy:0, r:7, speed: 6 },
-            paddle: { x:0, y:0, w:130, h:6 },
-            bricks: [],
-
-            boot() {
-                this.canvas = document.getElementById('stage');
-                this.ctx = this.canvas.getContext('2d');
-                this.resize();
-                
-                // Reset State
-                this.score = 0;
-                this.time = 60;
-                this.ball.speed = 6;
-                this.bricks = [];
-                
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                this.paddle.x = w/2 - this.paddle.w/2;
-                this.paddle.y = h - 80;
-                this.ball.x = w/2;
-                this.ball.y = h - 150;
-                this.ball.dx = 4;
-                this.ball.dy = -4;
-
-                // Build Matrix
-                const cols = w < 600 ? 5 : 10;
-                const rows = 5;
-                const pad = 12;
-                const bW = (w - (pad * (cols + 1))) / cols;
-
-                for(let c=0; c<cols; c++) {
-                    this.bricks[c] = [];
-                    for(let r=0; r<rows; r++) {
-                        this.bricks[c][r] = {
-                            x: pad + c * (bW + pad),
-                            y: 120 + r * (25 + pad),
-                            w: bW, h: 20,
-                            active: true,
-                            hp: r === 0 ? 2 : 1 // Tactical: Top row needs 2 hits
-                        };
-                    }
-                }
-
-                document.getElementById('gate').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('gate').style.display = 'none';
-                    this.active = true;
-                    this.lastTime = performance.now();
-                    requestAnimationFrame((t) => this.loop(t));
-                }, 500);
-
-                this.bind();
-            },
-
-            bind() {
-                const move = (e) => {
-                    const x = e.touches ? e.touches[0].clientX : e.clientX;
-                    this.paddle.x = x - this.paddle.w/2;
-                    // Screen Clamping
-                    if(this.paddle.x < 0) this.paddle.x = 0;
-                    if(this.paddle.x > window.innerWidth - this.paddle.w) this.paddle.x = window.innerWidth - this.paddle.w;
-                };
-                window.addEventListener('mousemove', move);
-                window.addEventListener('touchmove', (e) => { move(e); e.preventDefault(); }, {passive:false});
-                window.addEventListener('resize', () => this.resize());
-            },
-
-            resize() {
-                const dpr = window.devicePixelRatio || 1;
-                this.canvas.width = window.innerWidth * dpr;
-                this.canvas.height = window.innerHeight * dpr;
-                this.ctx.scale(dpr, dpr);
-            },
-
-            shutdown(success) {
-                this.active = false;
-                const gate = document.getElementById('gate');
-                gate.style.display = 'flex';
-                setTimeout(() => gate.style.opacity = '1', 10);
-                document.getElementById('gate-h').innerText = success ? "MISSION_CLEAR" : "CORE_LOSS";
-                document.getElementById('gate-h').style.color = success ? "var(--gold)" : "var(--danger)";
-                document.getElementById('gate-p').innerText = success ? 
-                    "All nodes neutralized. Archive secured." : 
-                    "System timeout. Quantum instability reached 100%.";
-            },
-
-            update(dt) {
-                this.time -= dt;
-                document.getElementById('timer').innerText = Math.max(0, this.time).toFixed(1);
-                if(this.time <= 0) return this.shutdown(false);
-
-                // Ball Movement
-                this.ball.x += this.ball.dx;
-                this.ball.y += this.ball.dy;
-
-                // Collisions: Walls
-                if(this.ball.x < this.ball.r || this.ball.x > window.innerWidth - this.ball.r) this.ball.dx *= -1;
-                if(this.ball.y < this.ball.r) this.ball.dy *= -1;
-
-                // Collisions: Paddle
-                if(this.ball.y > this.paddle.y - this.ball.r && this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
-                    this.ball.dy = -Math.abs(this.ball.dy);
-                    // Speed Increase Mechanic
-                    this.ball.dx *= 1.05;
-                    this.ball.dy *= 1.05;
-                    // Angle Control
-                    let influence = (this.ball.x - (this.paddle.x + this.paddle.w/2)) / (this.paddle.w/2);
-                    this.ball.dx = influence * 8;
-                }
-
-                // Collisions: Floor
-                if(this.ball.y > window.innerHeight) return this.shutdown(false);
-
-                // Collisions: Bricks
-                let remaining = 0;
-                this.bricks.forEach(col => col.forEach(b => {
-                    if(b.active) {
-                        remaining++;
-                        if(this.ball.x > b.x && this.ball.x < b.x + b.w && this.ball.y > b.y && this.ball.y < b.y + b.h) {
-                            this.ball.dy *= -1;
-                            b.hp--;
-                            if(b.hp <= 0) b.active = false;
-                            this.score += 150;
-                            document.getElementById('score-val').innerText = this.score.toString().padStart(4, '0');
-                        }
-                    }
-                }));
-
-                if(remaining === 0) return this.shutdown(true);
-            },
-
-            draw() {
-                const ctx = this.ctx;
-                ctx.fillStyle = '#0D0F12';
-                ctx.fillRect(0,0, window.innerWidth, window.innerHeight);
-
-                // Bricks
-                this.bricks.forEach(col => col.forEach(b => {
-                    if(b.active) {
-                        ctx.fillStyle = b.hp > 1 ? '#333' : '#C5A059';
-                        ctx.fillRect(b.x, b.y, b.w, b.h);
-                    }
-                }));
-
-                // Paddle
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.w, this.paddle.h);
-
-                // Ball
-                ctx.beginPath();
-                ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
-                ctx.fill();
-            },
-
-            loop(t) {
-                if(!this.active) return;
-                const dt = (t - this.lastTime) / 1000;
-                this.lastTime = t;
-                this.update(dt);
-                this.draw();
-                requestAnimationFrame((t) => this.loop(t));
-            }
+<script>
+const game = {
+    lvl: 1, score: 0, time: 60, active: false,
+    ball: { x:0, y:0, dx:5, dy:-5, r:6 },
+    paddle: { x:0, w:120, h:8 },
+    bricks: [], particles: [],
+    
+    init() {
+        this.canvas = document.getElementById('stage');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        
+        const input = (e) => {
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            this.paddle.x = x - this.paddle.w/2;
         };
-    </script>
+        window.addEventListener('mousemove', input);
+        window.addEventListener('touchmove', (e) => { input(e); e.preventDefault(); }, {passive:false});
+    },
+
+    resize() {
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = window.innerWidth * dpr;
+        this.canvas.height = window.innerHeight * dpr;
+        this.ctx.scale(dpr, dpr);
+    },
+
+    start() {
+        this.time = 62 - (this.lvl * 2); // Less time each level
+        this.bricks = [];
+        this.particles = [];
+        const cols = window.innerWidth < 600 ? 5 : 8;
+        const rows = 4 + Math.floor(this.lvl/3);
+        const pad = 10;
+        const bW = (window.innerWidth - (pad * (cols + 1))) / cols;
+
+        for(let c=0; c<cols; c++) {
+            for(let r=0; r<rows; r++) {
+                let type = 'normal';
+                // Level Logic: Introduce new brick types as level increases
+                if (this.lvl >= 2 && Math.random() > 0.8) type = 'hard';
+                if (this.lvl >= 3 && Math.random() > 0.9) type = 'explosive';
+                if (this.lvl >= 4 && Math.random() > 0.9) type = 'moving';
+                if (this.lvl >= 7 && Math.random() > 0.9) type = 'speed';
+                
+                this.bricks.push({
+                    x: pad + c * (bW + pad), y: 100 + r * (25 + pad),
+                    w: bW, h: 20, active: true, type: type,
+                    hp: type === 'hard' ? 3 : 1,
+                    v: type === 'moving' ? 2 : 0,
+                    visible: type !== 'invisible'
+                });
+            }
+        }
+
+        this.paddle.y = window.innerHeight - 80;
+        this.ball.x = window.innerWidth / 2;
+        this.ball.y = this.paddle.y - 20;
+        this.ball.dx = 5; this.ball.dy = -5;
+        
+        document.getElementById('screen').style.display = 'none';
+        document.getElementById('lvl-out').innerText = this.lvl.toString().padStart(2, '0');
+        this.active = true;
+        this.lastT = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    loop(t) {
+        if(!this.active) return;
+        const dt = (t - this.lastT) / 1000;
+        this.lastT = t;
+        
+        this.update(dt);
+        this.draw();
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    update(dt) {
+        this.time -= dt;
+        document.getElementById('time-out').innerText = Math.max(0, this.time).toFixed(1);
+        if(this.time <= 0) return this.end(false);
+
+        this.ball.x += this.ball.dx;
+        this.ball.y += this.ball.dy;
+
+        // Bounce
+        if(this.ball.x < 0 || this.ball.x > window.innerWidth) this.ball.dx *= -1;
+        if(this.ball.y < 0) this.ball.dy *= -1;
+        if(this.ball.y > window.innerHeight) return this.end(false);
+
+        // Paddle
+        if(this.ball.y > this.paddle.y && this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
+            this.ball.dy = -Math.abs(this.ball.dy);
+            this.ball.dx = (this.ball.x - (this.paddle.x + this.paddle.w/2)) * 0.2;
+        }
+
+        // Bricks
+        let remaining = 0;
+        this.bricks.forEach(b => {
+            if(!b.active) return;
+            remaining++;
+            
+            // Moving brick logic
+            if(b.type === 'moving') {
+                b.x += b.v;
+                if(b.x + b.w > window.innerWidth || b.x < 0) b.v *= -1;
+            }
+
+            if(this.ball.x > b.x && this.ball.x < b.x + b.w && this.ball.y > b.y && this.ball.y < b.y + b.h) {
+                this.hitBrick(b);
+            }
+        });
+
+        if(remaining === 0) {
+            if(this.lvl >= 14) this.end(true, "GRAND MASTER");
+            else { this.lvl++; this.start(); }
+        }
+    },
+
+    hitBrick(b) {
+        this.ball.dy *= -1;
+        b.hp--;
+        if(b.hp <= 0) {
+            b.active = false;
+            this.score += 100;
+            document.getElementById('score-out').innerText = this.score.toString().padStart(4, '0');
+            if(b.type === 'explosive') this.explode(b);
+        }
+        if(b.type === 'speed') this.ball.dx *= 1.5;
+    },
+
+    explode(origin) {
+        this.bricks.forEach(b => {
+            if(b.active && Math.hypot(b.x - origin.x, b.y - origin.y) < 100) {
+                b.active = false;
+                this.score += 50;
+            }
+        });
+    },
+
+    draw() {
+        this.ctx.fillStyle = '#0D0F12';
+        this.ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+
+        this.bricks.forEach(b => {
+            if(!b.active) return;
+            if(b.type === 'hard') {
+                this.ctx.fillStyle = b.hp === 3 ? '#888' : b.hp === 2 ? '#555' : '#333';
+            } else if(b.type === 'explosive') {
+                this.ctx.fillStyle = '#FF4B4B';
+            } else if(b.type === 'speed') {
+                this.ctx.fillStyle = '#00D1FF';
+            } else {
+                this.ctx.fillStyle = '#C5A059';
+            }
+            this.ctx.fillRect(b.x, b.y, b.w, b.h);
+            if(b.hp > 1) { // Crack effect for hard bricks
+                this.ctx.strokeStyle = 'white';
+                this.ctx.strokeRect(b.x+2, b.y+2, b.w-4, b.h-4);
+            }
+        });
+
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.w, this.paddle.h);
+        this.ctx.beginPath();
+        this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
+        this.ctx.fill();
+    },
+
+    end(win, title) {
+        this.active = false;
+        document.getElementById('screen').style.display = 'flex';
+        document.getElementById('m-title').innerText = win ? (title || "LEVEL CLEAR") : "CONNECTION LOST";
+        document.getElementById('m-desc').innerText = win ? "Next sector identified. Proceed." : "Neural core destabilized. Try again.";
+        if(!win) this.lvl = 1;
+    }
+};
+
+window.onload = () => game.init();
+</script>
 </body>
 </html>
